@@ -80,18 +80,18 @@
 - name: Initialize disks
   community.windows.win_initialize_disk:
     disk_number: "{{ vol_id_to_disk_id[vol_name_to_id[item.key]] }}"
-    style: "{{ default_style }}"
+    style: "{{ aws_windows_storage_default_style }}"
   loop: "{{ volumes | dict2items }}"
 - name: Partition disks
   community.windows.win_partition:
     drive_letter: "{{ item.value.letter }}"
     disk_number: "{{ vol_id_to_disk_id[vol_name_to_id[item.key]] }}"
     partition_size: -1
-    gpt_type: "{{ default_gpt_type }}"
+    gpt_type: "{{ aws_windows_storage_default_gpt_type }}"
   loop: "{{ volumes | dict2items }}"
 - name: Format disks
   community.windows.win_format:
     drive_letter: "{{ item.value.letter }}"
     new_label: "{{ item.key }}"
-    file_system: "{{ default_file_system }}"
+    file_system: "{{ aws_windows_storage_default_file_system }}"
   loop: "{{ volumes | dict2items }}"

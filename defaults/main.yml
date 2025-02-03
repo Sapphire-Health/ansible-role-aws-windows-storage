@@ -1,4 +1,4 @@
 ---
-default_file_system: ntfs
-default_gpt_type: basic_data
-default_style: gpt
+aws_windows_storage_default_file_system: ntfs
+aws_windows_storage_default_gpt_type: basic_data
+aws_windows_storage_default_style: gpt
