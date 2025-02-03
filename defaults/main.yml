@@ -1,0 +1,4 @@
+---
+default_file_system: ntfs
+default_gpt_type: basic_data
+default_style: gpt
