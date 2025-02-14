@@ -57,7 +57,7 @@
   register: windows_disks
 - name: Get volume id to disk id
   ansible.builtin.set_fact:
-    vol_id_win_disk_id: "{{ vol_id_win_disk_id | default({}) | combine({vol_name[0]: disk.unique_id}) }}"
+    vol_id_win_disk_id: "{{ vol_id_win_disk_id | default({}) | combine({vol_name[0]: disk.number | int}) }}"
   vars:
     vol_name: "{{ disk.serial_number | split('_') }}"
     ansible_connection: local
@@ -113,7 +113,7 @@
   ansible.windows.win_dsc:
     resource_name: Disk
     DiskId: "{{ vol_id_win_disk_id[vol_name_to_id[volume.key]] }}"
-    DiskIdType: 'UniqueId'
+    # DiskIdType: 'UniqueId'
     AllocationUnitSize: "{{ volume.value.AllocationUnitSize | default(omit) }}"
     AllowDestructive: "{{ volume.value.AllowDestructive | default(false) }}"
     PartitionStyle: "{{ volume.value.PartitionStyle | default('GPT') }}"
@@ -137,7 +137,7 @@
   ansible.windows.win_dsc:
     resource_name: DiskAccessPath
     DiskId: "{{ vol_id_win_disk_id[vol_name_to_id[volume.key]] }}"
-    DiskIdType: 'UniqueId'
+    # DiskIdType: 'UniqueId'
     AllocationUnitSize: "{{ volume.value.AllocationUnitSize | default(omit) }}"
     Size: "{{ volume.value.Size | default(omit) }}"
     AccessPath: "{{ volume.value.AccessPath }}"
