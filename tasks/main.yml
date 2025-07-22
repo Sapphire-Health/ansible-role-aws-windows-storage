@@ -114,7 +114,7 @@
     PartitionStyle: "{{ volume.value.PartitionStyle | default('GPT') }}"
     Size: "{{ volume.value.Size | default(omit) }}"
     DriveLetter: "{{ volume.value.DriveLetter }}"
-    FSLabel: "{{ volume.key }}"
+    FSLabel: "{{ volume.key.FSLabel }}"
     FSFormat: "{{ volume.value.FSFormat | default('NTFS') }}"
   when: volume.value.DriveLetter is defined
   loop: "{{ volumes | dict2items }}"
