@@ -114,7 +114,7 @@
     PartitionStyle: "{{ volume.value.PartitionStyle | default('GPT') }}"
     Size: "{{ volume.value.Size | default(omit) }}"
     DriveLetter: "{{ volume.value.DriveLetter }}"
-    FSLabel: "{{ volume.value.FSLabel }}"
+    FSLabel: "{{ volume.value.FSLabel | default(volume.key) }}"
     FSFormat: "{{ volume.value.FSFormat | default('NTFS') }}"
   when: volume.value.DriveLetter is defined
   loop: "{{ volumes | dict2items }}"
@@ -136,7 +136,7 @@
     AllocationUnitSize: "{{ volume.value.AllocationUnitSize | default(omit) }}"
     Size: "{{ volume.value.Size | default(omit) }}"
     AccessPath: "{{ volume.value.AccessPath }}"
-    FSLabel: "{{ volume.key }}"
+    FSLabel: "{{ volume.value.FSLabel | default(volume.key) }}"
     FSFormat: "{{ volume.value.FSFormat | default('NTFS') }}"
   when: volume.value.AccessPath is defined
   loop: "{{ volumes | dict2items }}"
