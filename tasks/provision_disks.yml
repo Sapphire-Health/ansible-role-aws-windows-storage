@@ -2,6 +2,11 @@
   tags:
     - always
   block:
+    - name: Make sure volumes variable is defined
+      ansible.builtin.fail:
+        msg: "volumes variable is not defined. Please define it in host_vars."
+      when: volumes is not defined
+
     - name: Get volume name to path
       ansible.builtin.set_fact:
         aws_windows_storage_vol_name_to_id: "{{ aws_windows_storage_vol_name_to_id | default({}) | combine({item.tags.ansible_key: vol_name}) }}"
