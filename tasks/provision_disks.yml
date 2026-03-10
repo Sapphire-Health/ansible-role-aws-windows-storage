@@ -1,0 +1,103 @@
+- name: Add tags to all tasks
+  tags:
+    - always
+  block:
+    - name: Make sure volumes variable is defined
+      ansible.builtin.fail:
+        msg: "volumes variable is not defined. Please define it in host_vars."
+      when: volumes is not defined
+
+    - name: Get volume name to path
+      ansible.builtin.set_fact:
+        aws_windows_storage_vol_name_to_id: "{{ aws_windows_storage_vol_name_to_id | default({}) | combine({item.tags.ansible_key: vol_name}) }}"
+      vars:
+        vol_name: "{{ item.id | replace('-', '') }}"
+        ansible_connection: local
+      delegate_to: localhost
+      when: item.tags and "ansible_key" in item.tags.keys()
+      loop: "{{ aws_windows_storage_ec2_vol_info.volumes }}"
+
+    - name: Show vol_name_to_id
+      ansible.builtin.debug:
+        msg: "{{ aws_windows_storage_vol_name_to_id }}"
+      delegate_to: localhost
+      vars:
+        ansible_connection: local
+
+    - name: Get disk facts
+      community.windows.win_disk_facts:
+      register: aws_windows_storage_windows_disks
+
+    - name: Get volume id to disk id
+      ansible.builtin.set_fact:
+        aws_windows_storage_vol_id_win_disk_id: "{{ aws_windows_storage_vol_id_win_disk_id | default({}) | combine({vol_name[0]: disk.number | int}) }}"
+      vars:
+        vol_name: "{{ disk.serial_number | split('_') }}"
+        ansible_connection: local
+      delegate_to: localhost
+      # when: disk.partition_count == 0
+      loop: "{{ aws_windows_storage_windows_disks.ansible_facts.ansible_disks }}"
+      loop_control:
+        loop_var: disk
+
+    - name: Show vol_id_win_disk_id
+      ansible.builtin.debug:
+        msg: "{{ aws_windows_storage_vol_id_win_disk_id }}"
+      delegate_to: localhost
+      vars:
+        ansible_connection: local
+
+    - name: Show disk information
+      ansible.builtin.debug:
+        msg: "{{ item.key }} - {{ item.value }}"
+      loop: "{{ volumes | dict2items }}"
+      delegate_to: localhost
+      vars:
+        ansible_connection: local
+
+    - name: Check for StorageDsc DSC Powershell module
+      community.windows.win_psmodule:
+        name: "StorageDsc"
+        accept_license: true
+        state: present
+
+    - name: Provision disks with drive letters
+      ansible.windows.win_dsc:
+        resource_name: Disk
+        DiskId: "{{ aws_windows_storage_vol_id_win_disk_id[aws_windows_storage_vol_name_to_id[volume.key]] }}"
+        # DiskIdType: 'UniqueId'
+        AllocationUnitSize: "{{ volume.value.AllocationUnitSize | default(omit) }}"
+        AllowDestructive: "{{ volume.value.AllowDestructive | default(false) }}"
+        PartitionStyle: "{{ volume.value.PartitionStyle | default('GPT') }}"
+        Size: "{{ volume.value.Size | default(omit) }}"
+        DriveLetter: "{{ volume.value.DriveLetter }}"
+        FSLabel: "{{ volume.value.FSLabel | default(volume.key) }}"
+        FSFormat: "{{ volume.value.FSFormat | default('NTFS') }}"
+      when: volume.value.DriveLetter is defined
+      loop: "{{ volumes | dict2items }}"
+      loop_control:
+        loop_var: volume
+
+    - name: Create directories for access paths (mount points)
+      ansible.windows.win_file:
+        path: "{{ mount_point.value.AccessPath }}"
+        state: directory
+      when: mount_point.value.AccessPath is defined
+      loop: "{{ volumes | dict2items }}"
+      loop_control:
+        loop_var: mount_point
+
+    - name: Provision disks with access paths
+      ansible.windows.win_dsc:
+        resource_name: DiskAccessPath
+        DiskId: "{{ aws_windows_storage_vol_id_win_disk_id[aws_windows_storage_vol_name_to_id[volume.key]] }}"
+        # DiskIdType: 'UniqueId'
+        AllocationUnitSize: "{{ volume.value.AllocationUnitSize | default(omit) }}"
+        Size: "{{ volume.value.Size | default(omit) }}"
+        AccessPath: "{{ volume.value.AccessPath }}"
+        FSLabel: "{{ volume.value.FSLabel | default(volume.key) }}"
+        FSFormat: "{{ volume.value.FSFormat | default('NTFS') }}"
+      when: volume.value.AccessPath is defined
+      loop: "{{ volumes | dict2items }}"
+      loop_control:
+        loop_var: volume

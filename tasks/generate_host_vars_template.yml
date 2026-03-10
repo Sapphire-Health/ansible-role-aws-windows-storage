@@ -1,0 +1,21 @@
+- name: Add tags to all tasks
+  tags:
+    - always
+  block:
+    - name: Format host_vars template
+      # ansible.builtin.debug:
+        # msg: "{{ item.disk.lun }} - {{ item.ansible_info.azure_managed_disk[0].tags.disk_label | default('N/A') }} - {{ item.disk.disk_size_gb }}GB"
+      ansible.builtin.set_fact:
+        aws_windows_storage_managed_disks_info: >-
+          {{ aws_windows_storage_managed_disks_info | default([]) +
+          ['# ' + (item.tags.ansible_key |
+          default('N/A')) + ' (' + item.size | string + 'GB)'] }}
+      delegate_to: localhost
+      loop: "{{ aws_windows_storage_ec2_vol_info.volumes }}"
+
+    - name: Write host_vars template
+      ansible.builtin.copy:
+        dest: "{{ inventory_dir }}/host_vars/{{ inventory_hostname }}.yml"
+        content: "{{ aws_windows_storage_managed_disks_info | sort | join('\n') }}\n"
+        mode: '0644'
+      delegate_to: localhost
