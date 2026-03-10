@@ -1,0 +1,76 @@
+- name: Add tags to all tasks
+  tags:
+    - always
+  block:
+    - name: Assume role for cross-account instances
+      when: assume_role_arn is defined
+      block:
+        - name: Assume role
+          amazon.aws.sts_assume_role:
+            role_arn: "{{ assume_role_arn }}"
+            role_session_name: ansible-{{ inventory_hostname_short }}
+          register: aws_windows_storage_assumed_role
+          changed_when: false
+          delegate_to: localhost
+        - name: Set AWS environment variables
+          ansible.builtin.set_fact:
+            aws_windows_storage_aws_env:
+              AWS_ACCESS_KEY_ID: "{{ aws_windows_storage_assumed_role.sts_creds.access_key }}"
+              AWS_SECRET_ACCESS_KEY: "{{ aws_windows_storage_assumed_role.sts_creds.secret_key }}"
+              AWS_SESSION_TOKEN: "{{ aws_windows_storage_assumed_role.sts_creds.session_token }}"
+
+    # - name: Make sure required variables are defined
+    #   ansible.builtin.assert:
+    #     that:
+    #       - "volumes is defined"
+
+    - name: Show EC2 volume info
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname_short }}"
+      delegate_to: localhost
+      vars:
+        ansible_connection: local
+
+    - name: Get EC2 instance info
+      amazon.aws.ec2_instance_info:
+        filters:
+          "tag:Name": "{{ inventory_hostname_short }}"
+          instance-state-name: ["running"]
+        region: "{{ hostvars[inventory_hostname].placement.region }}"
+      register: aws_windows_storage_ec2_instance
+      failed_when: aws_windows_storage_ec2_instance.instances | length == 0
+      environment: "{{ aws_windows_storage_aws_env | default({}) }}"
+      delegate_to: localhost
+      vars:
+        ansible_connection: local
+
+    - name: Show EC2 instance info
+      ansible.builtin.debug:
+        msg: "{{ aws_windows_storage_ec2_instance.instances[0].instance_id }}"
+      delegate_to: localhost
+      vars:
+        ansible_connection: local
+
+    - name: Make sure one instance was returned
+      ansible.builtin.fail:
+        msg: "No instance found for {{ inventory_hostname_short }}"
+      when: aws_windows_storage_ec2_instance.instances | length == 0 or aws_windows_storage_ec2_instance.instances | length > 1
+      delegate_to: localhost
+      vars:
+        ansible_connection: local
+
+    - name: Gather EC2 volume info
+      amazon.aws.ec2_vol_info:
+        filters:
+          attachment.instance_id: "{{ aws_windows_storage_ec2_instance.instances[0].instance_id }}"
+        region: "{{ hostvars[inventory_hostname].placement.region }}"
+      register: aws_windows_storage_ec2_vol_info
+      environment: "{{ aws_windows_storage_aws_env | default({}) }}"
+      delegate_to: localhost
+      vars:
+        ansible_connection: local
+
+    - name: Show managed disks info
+      ansible.builtin.debug:
+        msg: "{{ aws_windows_storage_ec2_vol_info }}"
+      delegate_to: localhost
